@@ -42,13 +42,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
-
-      - name: Resolve source revision
-        run: |
-          echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "SOURCE_REVISION_SHORT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
 
       - name: Prepare image name
         run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -56,12 +49,39 @@ jobs:
       - name: Validate package inputs
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
+          SOURCE_REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
           if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
             echo "Invalid Docker image tag: $IMAGE_TAG" >&2
             exit 1
           fi
+          if [[ ! "$SOURCE_REF" =~ ^[A-Za-z0-9_./-]+$ ]]; then
+            echo "Invalid source ref: $SOURCE_REF" >&2
+            exit 1
+          fi
+
+      - name: Checkout package source ref
+        env:
+          SOURCE_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$SOURCE_REF" >/dev/null 2>&1; then
+            git fetch --depth=1 origin "refs/heads/${SOURCE_REF}"
+            git checkout --detach FETCH_HEAD
+          elif git ls-remote --exit-code --tags origin "$SOURCE_REF" >/dev/null 2>&1; then
+            git fetch --depth=1 origin "refs/tags/${SOURCE_REF}"
+            git checkout --detach FETCH_HEAD
+          else
+            echo "Package source ref '$SOURCE_REF' was not found on origin." >&2
+            echo "For a release package, create and push the tag first, for example:" >&2
+            echo "  make github-release VERSION=0.1.0" >&2
+            echo "Or publish from main explicitly:" >&2
+            echo "  make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main" >&2
+            exit 1
+          fi
+          echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "SOURCE_REVISION_SHORT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

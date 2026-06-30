@@ -72,7 +72,14 @@ docker pull ghcr.io/buildyourownstuff/veloxdb:0.1
 Publish that package when you are ready:
 
 ```bash
+make github-release VERSION=0.1.0
 make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0
+```
+
+Or create the GitHub release tag and dispatch package publishing together:
+
+```bash
+make release VERSION=0.1.0
 ```
 
 Update `latest` only when you explicitly want the release to become the default package:
