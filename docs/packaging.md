@@ -49,6 +49,10 @@ make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 VELOX_CLI_REF=v0.1.0
 The tag must exist before the package workflow is dispatched. `make package-release` checks this
 locally so a missing tag does not become a failed GitHub Actions run.
 
+The package source ref must include the CLI-enabled Docker target. Older tags created before
+`runtime-with-cli` was added cannot publish the bundled CLI image. For those, either publish from
+`main` explicitly or cut a newer release tag first.
+
 The Docker package also includes `velox-cli`, which lives in the private
 `buildyourownstuff/velox-cli` repository. Before the first package release, add this repository
 secret to `buildyourownstuff/VeloxDB`:
@@ -82,7 +86,7 @@ make package-latest
 Publish a versioned package from the current `main` branch instead of a tag:
 
 ```bash
-make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main VELOX_CLI_REF=main
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main VELOX_CLI_REF=v0.1.0
 ```
 
 The workflow publishes:

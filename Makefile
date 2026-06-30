@@ -35,6 +35,13 @@ check-package-ref:
 		echo "  make package-release PACKAGE_TAG=$(PACKAGE_TAG) PACKAGE_REF=main VELOX_CLI_REF=main" >&2; \
 		exit 1; \
 	fi
+	@if ! git show "$(PACKAGE_REF):docker/Dockerfile" 2>/dev/null | grep -q "AS runtime-with-cli"; then \
+		echo "Package ref '$(PACKAGE_REF)' does not contain the CLI-enabled Docker target." >&2; \
+		echo "Use a newer package source ref, for example:" >&2; \
+		echo "  make package-release PACKAGE_TAG=$(PACKAGE_TAG) PACKAGE_REF=main VELOX_CLI_REF=$(VELOX_CLI_REF)" >&2; \
+		echo "Or cut a new release tag from current main before publishing a tagged package." >&2; \
+		exit 1; \
+	fi
 
 check-package-secret:
 	@if ! gh secret list --repo "$(GITHUB_REPO)" 2>/dev/null | awk '{print $$1}' | grep -qx VELOX_CLI_REPO_TOKEN; then \
