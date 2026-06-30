@@ -1,0 +1,28 @@
+[server]
+host = "0.0.0.0"
+port = 6379
+workers = 4
+max_clients = 10000
+
+[storage]
+shards = 64
+max_memory = "1gb"
+
+[persistence]
+aof_enabled = true
+aof_path = "./data/veloxdb.aof"
+fsync_policy = "everysec"
+snapshot_path = "./data/veloxdb.snapshot"
+
+[expiration]
+active_enabled = true
+interval_ms = 100
+
+[logging]
+level = "info"
+
+[metrics]
+enabled = true
+
+[admin]
+shutdown_enabled = false
