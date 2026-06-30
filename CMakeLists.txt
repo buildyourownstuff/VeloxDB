@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(VeloxDB VERSION 0.1.0 LANGUAGES CXX)
 
 option(VELOXDB_BUILD_TESTS "Build VeloxDB tests" ON)
+option(VELOXDB_BUILD_INTEGRATION_TESTS "Build VeloxDB integration tests" ON)
 option(VELOXDB_BUILD_BENCHMARKS "Build VeloxDB benchmarks" ON)
 option(VELOXDB_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(VELOXDB_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
@@ -91,6 +92,22 @@ if(VELOXDB_BUILD_TESTS)
   veloxdb_apply_common(veloxdb_tests)
   target_link_libraries(veloxdb_tests PRIVATE veloxdb_core)
   add_test(NAME veloxdb_tests COMMAND veloxdb_tests)
+
+  if(VELOXDB_BUILD_INTEGRATION_TESTS)
+    find_program(BASH_EXECUTABLE bash)
+    if(BASH_EXECUTABLE)
+      add_test(
+        NAME redis_cli_integration
+        COMMAND ${BASH_EXECUTABLE}
+                ${PROJECT_SOURCE_DIR}/tests/integration/redis_cli_smoke.sh
+                $<TARGET_FILE:veloxdb>)
+      set_tests_properties(redis_cli_integration PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 45)
+    else()
+      message(WARNING "bash not found; redis-cli integration test will not be registered")
+    endif()
+  endif()
 endif()
 
 if(VELOXDB_BUILD_BENCHMARKS)

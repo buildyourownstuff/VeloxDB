@@ -4,7 +4,7 @@
 
 - Linux epoll backend. Done.
 - First-party `velox-cli` client. Done.
-- More integration tests with `redis-cli`.
+- More integration tests with `redis-cli`. Done.
 - Parser fuzz target.
 - AOF rewrite and compaction.
 - Snapshot/AOF manifest with offsets.

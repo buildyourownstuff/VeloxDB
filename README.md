@@ -37,6 +37,7 @@ Useful CMake options:
 
 ```text
 VELOXDB_BUILD_TESTS=ON/OFF
+VELOXDB_BUILD_INTEGRATION_TESTS=ON/OFF
 VELOXDB_BUILD_BENCHMARKS=ON/OFF
 VELOXDB_ENABLE_ASAN=ON/OFF
 VELOXDB_ENABLE_UBSAN=ON/OFF
@@ -63,6 +64,10 @@ Or override values directly:
 ```bash
 ctest --test-dir build --output-on-failure
 ```
+
+When `redis-cli` is available, CTest also runs an integration smoke test that starts VeloxDB,
+exercises supported Redis-compatible commands, restarts the server, and verifies AOF recovery. The
+integration test is skipped automatically when `redis-cli` is not installed.
 
 Convenience:
 
