@@ -148,7 +148,14 @@ Pull from GitHub Container Registry:
 
 ```bash
 docker pull ghcr.io/buildyourownstuff/veloxdb:latest
-docker run --rm -p 7379:7379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+docker run --name veloxdb --rm -d -p 7379:7379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+```
+
+Published VeloxDB images include the matching `velox-cli` binary:
+
+```bash
+docker exec -it veloxdb velox-cli PING
+docker stop veloxdb
 ```
 
 Build locally:

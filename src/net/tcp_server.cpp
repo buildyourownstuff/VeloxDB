@@ -144,7 +144,8 @@ private:
   void wake() {
     if (wakeup_pipe_[1] >= 0) {
       char byte = 0;
-      (void)::write(wakeup_pipe_[1], &byte, 1);
+      const ssize_t ignored = ::write(wakeup_pipe_[1], &byte, 1);
+      (void)ignored;
     }
   }
 

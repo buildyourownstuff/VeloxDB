@@ -24,6 +24,11 @@ on:
         required: true
         default: "linux/amd64,linux/arm64"
         type: string
+      velox_cli_ref:
+        description: "velox-cli git ref to include in the image"
+        required: true
+        default: "main"
+        type: string
 
 permissions:
   contents: read
@@ -50,6 +55,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
           SOURCE_REF: ${{ inputs.ref }}
+          VELOX_CLI_REF: ${{ inputs.velox_cli_ref }}
         run: |
           set -euo pipefail
           if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
@@ -58,6 +64,10 @@ jobs:
           fi
           if [[ ! "$SOURCE_REF" =~ ^[A-Za-z0-9_./-]+$ ]]; then
             echo "Invalid source ref: $SOURCE_REF" >&2
+            exit 1
+          fi
+          if [[ ! "$VELOX_CLI_REF" =~ ^[A-Za-z0-9_./-]+$ ]]; then
+            echo "Invalid velox-cli ref: $VELOX_CLI_REF" >&2
             exit 1
           fi
 
@@ -82,6 +92,32 @@ jobs:
           fi
           echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "SOURCE_REVISION_SHORT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
+
+      - name: Validate velox-cli repository token
+        env:
+          VELOX_CLI_REPO_TOKEN: ${{ secrets.VELOX_CLI_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$VELOX_CLI_REPO_TOKEN" ]]; then
+            echo "VELOX_CLI_REPO_TOKEN is required to package velox-cli from the private repository." >&2
+            echo "Create a fine-grained token with read-only Contents access to buildyourownstuff/velox-cli." >&2
+            exit 1
+          fi
+
+      - name: Checkout velox-cli
+        uses: actions/checkout@v4
+        with:
+          repository: buildyourownstuff/velox-cli
+          ref: ${{ inputs.velox_cli_ref }}
+          path: .docker-context/velox-cli
+          token: ${{ secrets.VELOX_CLI_REPO_TOKEN }}
+
+      - name: Resolve velox-cli revision
+        working-directory: .docker-context/velox-cli
+        run: |
+          set -euo pipefail
+          echo "VELOX_CLI_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "VELOX_CLI_REVISION_SHORT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -122,8 +158,11 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          target: runtime-with-cli
           platforms: ${{ inputs.platforms }}
           push: true
+          build-contexts: |
+            velox_cli=.docker-context/velox-cli
           tags: ${{ steps.tags.outputs.tags }}
           labels: |
             org.opencontainers.image.title=VeloxDB
@@ -132,10 +171,15 @@ jobs:
             org.opencontainers.image.version=${{ inputs.image_tag }}
             org.opencontainers.image.revision=${{ env.SOURCE_REVISION }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.veloxdb.cli.source=${{ github.server_url }}/buildyourownstuff/velox-cli
+            org.opencontainers.image.veloxdb.cli.ref=${{ inputs.velox_cli_ref }}
+            org.opencontainers.image.veloxdb.cli.revision=${{ env.VELOX_CLI_REVISION }}
           build-args: |
             VERSION=${{ inputs.image_tag }}
             REVISION=${{ env.SOURCE_REVISION }}
             SOURCE=${{ github.server_url }}/${{ github.repository }}
+            VELOX_CLI_REF=${{ inputs.velox_cli_ref }}
+            VELOX_CLI_REVISION=${{ env.VELOX_CLI_REVISION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true

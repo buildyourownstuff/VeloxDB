@@ -21,6 +21,14 @@ Then connect with:
 redis-cli -p 7379 PING
 ```
 
+Published VeloxDB images also include the first-party CLI:
+
+```bash
+docker run --name veloxdb --rm -d -p 7379:7379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+docker exec -it veloxdb velox-cli PING
+docker stop veloxdb
+```
+
 Docker Compose without a local build:
 
 ```bash
@@ -93,6 +101,37 @@ It builds multi-architecture images for:
 
 It only runs through manual workflow dispatch, normally via `make package-release`, and publishes to
 GHCR using GitHub's built-in `GITHUB_TOKEN`.
+
+The published package target is `runtime-with-cli`, so the image contains:
+
+- `/usr/local/bin/veloxdb`
+- `/usr/local/bin/velox-cli`
+
+Because `velox-cli` lives in the private `buildyourownstuff/velox-cli` repository, the workflow
+requires a repository secret:
+
+```text
+VELOX_CLI_REPO_TOKEN
+```
+
+Use a fine-grained token with read-only Contents access to `buildyourownstuff/velox-cli`.
+
+The workflow input `velox_cli_ref` controls the CLI ref included in the package. It defaults to
+`main`. For a fully pinned release package, dispatch the workflow with a tagged CLI ref such as
+`v0.1.0`.
+
+Local source builds can produce the same image shape when the sibling CLI checkout is available:
+
+```bash
+docker buildx build \
+  --target runtime-with-cli \
+  --build-context velox_cli=../velox-cli \
+  -t veloxdb:dev \
+  -f docker/Dockerfile .
+```
+
+The plain local `docker build -f docker/Dockerfile .` path remains server-only so VeloxDB can still
+be built without access to the private CLI repository.
 
 ## Package Visibility
 
