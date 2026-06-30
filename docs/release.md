@@ -2,6 +2,23 @@
 
 VeloxDB uses semantic version tags and GitHub Releases.
 
+## Continuous Main Release
+
+Every push to `main` updates a visible GitHub prerelease:
+
+```text
+VeloxDB Continuous (main)
+```
+
+It uses the moving tag:
+
+```text
+continuous-main
+```
+
+This release includes source archives and `SHA256SUMS` for the latest `main` commit. It is marked as
+a prerelease and is not marked as the latest stable release.
+
 ## Naming
 
 Release tags must use:

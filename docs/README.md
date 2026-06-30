@@ -7,4 +7,5 @@
 - [Benchmarking](benchmarking.md)
 - [Docker Package Publishing](packaging.md)
 - [Release Process](release.md)
+- [Contributing](contributing.md)
 - [Roadmap](roadmap.md)
