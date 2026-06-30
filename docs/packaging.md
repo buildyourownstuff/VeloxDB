@@ -43,16 +43,28 @@ Publish a released package from a tag:
 
 ```bash
 make github-release VERSION=0.1.0
-make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 VELOX_CLI_REF=v0.1.0
 ```
 
 The tag must exist before the package workflow is dispatched. `make package-release` checks this
 locally so a missing tag does not become a failed GitHub Actions run.
 
+The Docker package also includes `velox-cli`, which lives in the private
+`buildyourownstuff/velox-cli` repository. Before the first package release, add this repository
+secret to `buildyourownstuff/VeloxDB`:
+
+```bash
+gh secret set VELOX_CLI_REPO_TOKEN --repo buildyourownstuff/VeloxDB
+```
+
+Use a fine-grained GitHub token with read-only Contents access to
+`buildyourownstuff/velox-cli`. `make package-release` checks for this secret locally before
+dispatching the workflow.
+
 Publish a released package and also update `latest`:
 
 ```bash
-make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 PUBLISH_LATEST=true
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 VELOX_CLI_REF=v0.1.0 PUBLISH_LATEST=true
 ```
 
 Create the GitHub release tag and publish the Docker package in one command:
@@ -70,7 +82,7 @@ make package-latest
 Publish a versioned package from the current `main` branch instead of a tag:
 
 ```bash
-make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main VELOX_CLI_REF=main
 ```
 
 The workflow publishes:
@@ -116,9 +128,8 @@ VELOX_CLI_REPO_TOKEN
 
 Use a fine-grained token with read-only Contents access to `buildyourownstuff/velox-cli`.
 
-The workflow input `velox_cli_ref` controls the CLI ref included in the package. It defaults to
-`main`. For a fully pinned release package, dispatch the workflow with a tagged CLI ref such as
-`v0.1.0`.
+The workflow input `velox_cli_ref` controls the CLI ref included in the package. For a fully pinned
+release package, use a tagged CLI ref such as `v0.1.0`.
 
 Local source builds can produce the same image shape when the sibling CLI checkout is available:
 
