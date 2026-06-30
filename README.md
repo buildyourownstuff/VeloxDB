@@ -159,7 +159,13 @@ See [docs/packaging.md](docs/packaging.md) for GHCR tags and publishing details.
 ## Releases
 
 VeloxDB uses semantic Git tags like `v0.1.0`. GitHub Releases are named `VeloxDB v0.1.0`
-and include source archives plus checksums. See [docs/release.md](docs/release.md).
+and include source archives plus checksums. Container package publishing is manual:
+
+```bash
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0
+```
+
+See [docs/release.md](docs/release.md).
 
 ## Roadmap
 

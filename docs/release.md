@@ -41,7 +41,7 @@ The release workflow validates that the tag version matches the CMake project ve
 - Source archives: `.tar.gz` and `.zip`.
 - `SHA256SUMS` for release artifacts.
 
-The Docker publishing workflow also publishes matching GHCR tags for semantic version releases.
+The Docker package is published separately and manually through the Makefile.
 
 ## Container Release
 
@@ -52,8 +52,14 @@ docker pull ghcr.io/buildyourownstuff/veloxdb:0.1.0
 docker pull ghcr.io/buildyourownstuff/veloxdb:0.1
 ```
 
-The default branch also publishes:
+Publish that package when you are ready:
 
 ```bash
-docker pull ghcr.io/buildyourownstuff/veloxdb:latest
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0
+```
+
+Update `latest` only when you explicitly want the release to become the default package:
+
+```bash
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 PUBLISH_LATEST=true
 ```

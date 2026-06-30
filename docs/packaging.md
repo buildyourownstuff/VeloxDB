@@ -27,14 +27,34 @@ Docker Compose without a local build:
 docker compose -f docker/docker-compose.ghcr.yml up
 ```
 
-## Published Tags
+## Manual Package Release
 
-The GitHub Actions workflow publishes:
+Container publishing is manual. Normal pushes to `main` do not publish a new package.
 
-- `latest` from the default branch.
-- `main` from pushes to `main`.
+Publish a released package from a tag:
+
+```bash
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0
+```
+
+Publish a released package and also update `latest`:
+
+```bash
+make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 PUBLISH_LATEST=true
+```
+
+Publish `latest` from `main`:
+
+```bash
+make package-latest
+```
+
+The workflow publishes:
+
+- The requested `PACKAGE_TAG`.
+- `MAJOR.MINOR` when `PACKAGE_TAG` is semantic, for example `0.1` from `0.1.0`.
+- `latest` only when `PUBLISH_LATEST=true`.
 - `sha-<commit>` for traceable commit images.
-- Semantic version tags from Git tags like `v0.1.0`.
 
 Pull a released version:
 
@@ -55,8 +75,8 @@ It builds multi-architecture images for:
 - `linux/amd64`
 - `linux/arm64`
 
-Pull requests build the image but do not publish it. Pushes to `main`, semantic version tags, and
-manual workflow dispatches publish to GHCR using GitHub's built-in `GITHUB_TOKEN`.
+It only runs through manual workflow dispatch, normally via `make package-release`, and publishes to
+GHCR using GitHub's built-in `GITHUB_TOKEN`.
 
 ## Package Visibility
 
