@@ -10,6 +10,9 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
+#if defined(__linux__)
+#include <sys/epoll.h>
+#endif
 #include <unistd.h>
 
 #include <array>
@@ -66,12 +69,34 @@ public:
     }
     Status status = set_nonblocking(wakeup_pipe_[0]);
     if (!status) {
+      close_fd(wakeup_pipe_[0]);
+      close_fd(wakeup_pipe_[1]);
       return status;
     }
     status = set_nonblocking(wakeup_pipe_[1]);
     if (!status) {
+      close_fd(wakeup_pipe_[0]);
+      close_fd(wakeup_pipe_[1]);
       return status;
     }
+#if defined(__linux__)
+    epoll_fd_ = ::epoll_create1(EPOLL_CLOEXEC);
+    if (epoll_fd_ < 0) {
+      close_fd(wakeup_pipe_[0]);
+      close_fd(wakeup_pipe_[1]);
+      return Status::io_error("epoll_create1: " + std::string(std::strerror(errno)));
+    }
+    epoll_event event{};
+    event.events = EPOLLIN;
+    event.data.fd = wakeup_pipe_[0];
+    if (::epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, wakeup_pipe_[0], &event) != 0) {
+      status = Status::io_error("epoll_ctl wakeup: " + std::string(std::strerror(errno)));
+      close_fd(epoll_fd_);
+      close_fd(wakeup_pipe_[0]);
+      close_fd(wakeup_pipe_[1]);
+      return status;
+    }
+#endif
     stopping_.store(false, std::memory_order_relaxed);
     thread_ = std::thread([this] { loop(); });
     return Status::ok();
@@ -83,6 +108,9 @@ public:
     if (thread_.joinable()) {
       thread_.join();
     }
+#if defined(__linux__)
+    close_fd(epoll_fd_);
+#endif
     close_fd(wakeup_pipe_[0]);
     close_fd(wakeup_pipe_[1]);
   }
@@ -135,13 +163,34 @@ private:
     while (!local.empty()) {
       PendingConnection pending = std::move(local.front());
       local.pop_front();
-      connections_.try_emplace(pending.fd, pending.fd, std::move(pending.peer), config_.protocol);
+      const int fd = pending.fd;
+      auto [it, inserted] =
+          connections_.try_emplace(fd, fd, std::move(pending.peer), config_.protocol);
+      if (!inserted) {
+        int close_me = fd;
+        close_fd(close_me);
+        continue;
+      }
+      if (!register_connection(fd)) {
+        int close_me = it->second.fd;
+        close_fd(close_me);
+        connections_.erase(it);
+        continue;
+      }
       metrics_.connection_opened();
       log_debug("net", "client connected on worker " + std::to_string(id_));
     }
   }
 
   void loop() {
+#if defined(__linux__)
+    loop_epoll();
+#else
+    loop_poll();
+#endif
+  }
+
+  void loop_poll() {
     while (!stopping_.load(std::memory_order_relaxed)) {
       std::vector<pollfd> fds;
       fds.reserve(connections_.size() + 1);
@@ -202,6 +251,76 @@ private:
       }
     }
 
+    close_all_connections();
+  }
+
+#if defined(__linux__)
+  void loop_epoll() {
+    constexpr int kMaxEvents = 256;
+    std::array<epoll_event, kMaxEvents> events{};
+
+    while (!stopping_.load(std::memory_order_relaxed)) {
+      const int ready = ::epoll_wait(epoll_fd_, events.data(), kMaxEvents, 100);
+      if (ready < 0) {
+        if (errno == EINTR) {
+          continue;
+        }
+        log_error("net", "epoll_wait failed: " + std::string(std::strerror(errno)));
+        continue;
+      }
+      if (ready == 0) {
+        continue;
+      }
+
+      std::vector<int> close_list;
+      for (int i = 0; i < ready; ++i) {
+        const int fd = events[static_cast<size_t>(i)].data.fd;
+        const uint32_t event_mask = events[static_cast<size_t>(i)].events;
+
+        if (fd == wakeup_pipe_[0]) {
+          drain_wakeup();
+          install_pending();
+          continue;
+        }
+
+        auto it = connections_.find(fd);
+        if (it == connections_.end()) {
+          continue;
+        }
+
+        Connection& conn = it->second;
+        bool should_close = false;
+        if ((event_mask & EPOLLERR) != 0U) {
+          should_close = true;
+        }
+        if (!should_close && (event_mask & EPOLLIN) != 0U && !read_from(conn)) {
+          should_close = true;
+        }
+        if (!should_close && (event_mask & EPOLLOUT) != 0U && !write_to(conn)) {
+          should_close = true;
+        }
+        if (!should_close && (event_mask & (EPOLLHUP | EPOLLRDHUP)) != 0U &&
+            conn.write_buffer.empty()) {
+          should_close = true;
+        }
+
+        if (should_close) {
+          close_list.push_back(fd);
+          continue;
+        }
+        update_connection_interest(conn);
+      }
+
+      for (int fd : close_list) {
+        close_connection(fd);
+      }
+    }
+
+    close_all_connections();
+  }
+#endif
+
+  void close_all_connections() {
     for (auto& [fd, conn] : connections_) {
       (void)fd;
       int close_me = conn.fd;
@@ -209,6 +328,53 @@ private:
       metrics_.connection_closed();
     }
     connections_.clear();
+  }
+
+  bool register_connection(int fd) {
+#if defined(__linux__)
+    if (epoll_fd_ < 0) {
+      return true;
+    }
+    epoll_event event{};
+    event.events = EPOLLIN | EPOLLRDHUP;
+    event.data.fd = fd;
+    if (::epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event) != 0) {
+      log_warn("net", "epoll_ctl add client failed: " + std::string(std::strerror(errno)));
+      return false;
+    }
+#else
+    (void)fd;
+#endif
+    return true;
+  }
+
+  void unregister_connection(int fd) {
+#if defined(__linux__)
+    if (epoll_fd_ >= 0) {
+      (void)::epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
+    }
+#else
+    (void)fd;
+#endif
+  }
+
+  void update_connection_interest(Connection& conn) {
+#if defined(__linux__)
+    if (epoll_fd_ < 0) {
+      return;
+    }
+    epoll_event event{};
+    event.events = EPOLLIN | EPOLLRDHUP;
+    if (!conn.write_buffer.empty()) {
+      event.events |= EPOLLOUT;
+    }
+    event.data.fd = conn.fd;
+    if (::epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn.fd, &event) != 0) {
+      log_warn("net", "epoll_ctl mod client failed: " + std::string(std::strerror(errno)));
+    }
+#else
+    (void)conn;
+#endif
   }
 
   bool read_from(Connection& conn) {
@@ -306,6 +472,7 @@ private:
       return;
     }
     int close_me = it->second.fd;
+    unregister_connection(fd);
     close_fd(close_me);
     connections_.erase(it);
     metrics_.connection_closed();
@@ -322,6 +489,9 @@ private:
   std::function<void()> request_shutdown_;
   std::atomic_bool stopping_{false};
   int wakeup_pipe_[2]{-1, -1};
+#if defined(__linux__)
+  int epoll_fd_{-1};
+#endif
   std::thread thread_;
   std::mutex pending_mu_;
   std::deque<PendingConnection> pending_;
@@ -372,21 +542,7 @@ Status TcpServer::run(const std::atomic_bool* external_stop) {
   log_info("server", "listening on " + config_.server.host + ":" + std::to_string(config_.server.port));
 
   size_t next_worker = 0;
-  while (!stopping_.load(std::memory_order_relaxed) &&
-         !(external_stop != nullptr && external_stop->load(std::memory_order_relaxed))) {
-    pollfd fd{listen_fd_, POLLIN, 0};
-    const int ready = ::poll(&fd, 1, 100);
-    if (ready < 0) {
-      if (errno == EINTR) {
-        continue;
-      }
-      status = Status::io_error("accept poll failed: " + std::string(std::strerror(errno)));
-      break;
-    }
-    if (ready > 0 && (fd.revents & POLLIN) != 0) {
-      accept_ready(next_worker);
-    }
-  }
+  status = accept_loop(external_stop, next_worker);
 
   request_stop();
   for (auto& worker : workers_) {
@@ -396,6 +552,66 @@ Status TcpServer::run(const std::atomic_bool* external_stop) {
   close_listener();
   log_info("server", "TCP server stopped");
   return status;
+}
+
+bool TcpServer::should_stop(const std::atomic_bool* external_stop) const {
+  return stopping_.load(std::memory_order_relaxed) ||
+         (external_stop != nullptr && external_stop->load(std::memory_order_relaxed));
+}
+
+Status TcpServer::accept_loop(const std::atomic_bool* external_stop, size_t& next_worker) {
+#if defined(__linux__)
+  int epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
+  if (epoll_fd < 0) {
+    return Status::io_error("accept epoll_create1: " + std::string(std::strerror(errno)));
+  }
+
+  epoll_event event{};
+  event.events = EPOLLIN;
+  event.data.fd = listen_fd_;
+  if (::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd_, &event) != 0) {
+    Status status = Status::io_error("accept epoll_ctl: " + std::string(std::strerror(errno)));
+    close_fd(epoll_fd);
+    return status;
+  }
+
+  std::array<epoll_event, 8> events{};
+  while (!should_stop(external_stop)) {
+    const int ready = ::epoll_wait(epoll_fd, events.data(), static_cast<int>(events.size()), 100);
+    if (ready < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      Status status =
+          Status::io_error("accept epoll_wait failed: " + std::string(std::strerror(errno)));
+      close_fd(epoll_fd);
+      return status;
+    }
+    for (int i = 0; i < ready; ++i) {
+      if ((events[static_cast<size_t>(i)].events & (EPOLLIN | EPOLLERR | EPOLLHUP)) != 0U) {
+        accept_ready(next_worker);
+      }
+    }
+  }
+
+  close_fd(epoll_fd);
+  return Status::ok();
+#else
+  while (!should_stop(external_stop)) {
+    pollfd fd{listen_fd_, POLLIN, 0};
+    const int ready = ::poll(&fd, 1, 100);
+    if (ready < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return Status::io_error("accept poll failed: " + std::string(std::strerror(errno)));
+    }
+    if (ready > 0 && (fd.revents & POLLIN) != 0) {
+      accept_ready(next_worker);
+    }
+  }
+  return Status::ok();
+#endif
 }
 
 void TcpServer::request_stop() {

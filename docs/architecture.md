@@ -15,11 +15,12 @@ VeloxDB does not bind to Redis's `6379` default unless explicitly configured to 
 ## Networking
 
 The MVP uses a single acceptor loop and multiple worker event loops. Accepted sockets are set
-nonblocking and dispatched round-robin to workers. Workers use `poll()` and own their client
+nonblocking and dispatched round-robin to workers. On Linux, the acceptor and workers use `epoll`.
+On other platforms, VeloxDB falls back to the portable `poll()` backend. Workers own their client
 connections, parser buffers, and write buffers.
 
-The design keeps the event-loop boundary explicit so a Linux `epoll` or `io_uring` backend can
-replace the current portable `poll()` backend later.
+The design keeps the event-loop boundary explicit so an `io_uring` backend can be introduced later
+without changing command execution or storage interfaces.
 
 ## Command Execution
 

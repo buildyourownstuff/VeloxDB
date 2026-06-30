@@ -2,7 +2,7 @@
 
 ## Phase 1: MVP Hardening
 
-- Linux epoll backend.
+- Linux epoll backend. Done.
 - More integration tests with `redis-cli`.
 - Parser fuzz target.
 - AOF rewrite and compaction.

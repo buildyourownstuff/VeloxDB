@@ -35,6 +35,8 @@ private:
   Status setup_listener();
   void close_listener();
   void accept_ready(size_t& next_worker);
+  [[nodiscard]] bool should_stop(const std::atomic_bool* external_stop) const;
+  Status accept_loop(const std::atomic_bool* external_stop, size_t& next_worker);
 
   Config& config_;
   StorageEngine& storage_;

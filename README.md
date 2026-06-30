@@ -13,7 +13,8 @@ architecture.
 Implemented:
 
 - RESP2 parser and encoder with incremental parsing and bounded request buffers.
-- Poll-based nonblocking TCP server with acceptor dispatch and worker event loops.
+- Linux epoll networking backend with portable poll fallback, acceptor dispatch, and worker event
+  loops.
 - Sharded string key-value storage with TTL, lazy expiration, and active expiration.
 - Append-only file persistence with `always`, `everysec`, and `no` fsync policies.
 - `INFO` metrics, structured stderr logging, config file/env/CLI loading.
@@ -177,6 +178,6 @@ Commit messages should use conventional commit-style prefixes such as `feat:`, `
 
 ## Roadmap
 
-Near-term work is focused on epoll/io_uring networking backends, AUTH/ACL, AOF rewrite,
-Prometheus metrics, slowlog, richer latency histograms, more Redis string command coverage, and
-snapshot/AOF manifest coordination. See [docs/roadmap.md](docs/roadmap.md).
+Near-term work is focused on io_uring experiments, AUTH/ACL, AOF rewrite, Prometheus metrics,
+slowlog, richer latency histograms, more Redis string command coverage, and snapshot/AOF manifest
+coordination. See [docs/roadmap.md](docs/roadmap.md).
