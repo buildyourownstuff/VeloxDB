@@ -10,7 +10,7 @@ namespace veloxdb {
 
 struct ServerConfig {
   std::string host{"0.0.0.0"};
-  uint16_t port{6379};
+  uint16_t port{7379};
   size_t workers{4};
   size_t max_clients{10000};
 };

@@ -5,7 +5,7 @@ services:
       dockerfile: docker/Dockerfile
     image: veloxdb:dev
     ports:
-      - "6379:6379"
+      - "7379:7379"
     volumes:
       - veloxdb-data:/data
     environment:

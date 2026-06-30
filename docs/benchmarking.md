@@ -22,10 +22,10 @@ These are smoke benchmarks, not product claims.
 ## Redis Comparison
 
 ```bash
-redis-server --port 6380
-./build/veloxdb --port 6379
+redis-server --port 6379
+./build/veloxdb --port 7379
+redis-benchmark -p 7379 -t get,set -n 100000 -c 50
 redis-benchmark -p 6379 -t get,set -n 100000 -c 50
-redis-benchmark -p 6380 -t get,set -n 100000 -c 50
 ```
 
 Record all of the following before comparing:

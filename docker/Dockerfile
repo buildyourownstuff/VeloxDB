@@ -34,10 +34,10 @@ RUN apt-get update \
 COPY --from=build /src/build/veloxdb /usr/local/bin/veloxdb
 COPY veloxdb.toml /etc/veloxdb/veloxdb.toml
 
-EXPOSE 6379
+EXPOSE 7379
 VOLUME ["/data"]
 
 USER veloxdb
 WORKDIR /var/lib/veloxdb
 
-CMD ["veloxdb", "--host", "0.0.0.0", "--port", "6379", "--aof-path", "/data/veloxdb.aof", "--snapshot-path", "/data/veloxdb.snapshot"]
+CMD ["veloxdb", "--host", "0.0.0.0", "--port", "7379", "--aof-path", "/data/veloxdb.aof", "--snapshot-path", "/data/veloxdb.snapshot"]

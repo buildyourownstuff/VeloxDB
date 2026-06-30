@@ -9,6 +9,9 @@ VeloxDB is split into focused modules:
 - `persistence`: append-only file and snapshot helpers.
 - `config`, `metrics`, `util`: runtime support.
 
+VeloxDB's standard default TCP port is `7379`. Redis compatibility remains a protocol goal, but
+VeloxDB does not bind to Redis's `6379` default unless explicitly configured to do so.
+
 ## Networking
 
 The MVP uses a single acceptor loop and multiple worker event loops. Accepted sockets are set

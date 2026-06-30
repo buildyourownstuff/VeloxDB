@@ -200,7 +200,7 @@ Usage:
 
 Options:
   --host <addr>                         Listen address (default 0.0.0.0)
-  --port <port>                         Listen port (default 6379)
+  --port <port>                         Listen port (default 7379)
   --workers <n>                         Worker event loops
   --max-clients <n>                     Connection limit
   --storage-shards <n>                  Storage shard count

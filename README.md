@@ -45,6 +45,8 @@ VELOXDB_ENABLE_LTO=ON/OFF
 
 ## Run
 
+VeloxDB's standard default port is `7379`, intentionally separate from Redis's default `6379`.
+
 ```bash
 ./build/veloxdb --config ./veloxdb.toml
 ```
@@ -52,7 +54,7 @@ VELOXDB_ENABLE_LTO=ON/OFF
 Or override values directly:
 
 ```bash
-./build/veloxdb --host 0.0.0.0 --port 6379 --workers 4
+./build/veloxdb --host 0.0.0.0 --port 7379 --workers 4
 ```
 
 ## Test
@@ -70,13 +72,13 @@ Convenience:
 ## Redis CLI Examples
 
 ```bash
-redis-cli -p 6379 PING
-redis-cli -p 6379 SET name dev
-redis-cli -p 6379 GET name
-redis-cli -p 6379 INCR counter
-redis-cli -p 6379 EXPIRE name 10
-redis-cli -p 6379 TTL name
-redis-cli -p 6379 INFO
+redis-cli -p 7379 PING
+redis-cli -p 7379 SET name dev
+redis-cli -p 7379 GET name
+redis-cli -p 7379 INCR counter
+redis-cli -p 7379 EXPIRE name 10
+redis-cli -p 7379 TTL name
+redis-cli -p 7379 INFO
 ```
 
 ## Supported Commands
@@ -115,10 +117,10 @@ cmake --build build -j
 Redis comparison workflow:
 
 ```bash
-redis-server --port 6380
-./build/veloxdb --port 6379
+redis-server --port 6379
+./build/veloxdb --port 7379
+redis-benchmark -p 7379 -t get,set -n 100000 -c 50
 redis-benchmark -p 6379 -t get,set -n 100000 -c 50
-redis-benchmark -p 6380 -t get,set -n 100000 -c 50
 ```
 
 Do not treat benchmark results as comparable unless machine specs, build type, persistence settings,
@@ -130,14 +132,14 @@ Pull from GitHub Container Registry:
 
 ```bash
 docker pull ghcr.io/buildyourownstuff/veloxdb:latest
-docker run --rm -p 6379:6379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+docker run --rm -p 7379:7379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
 ```
 
 Build locally:
 
 ```bash
 docker build -t veloxdb:dev -f docker/Dockerfile .
-docker run --rm -p 6379:6379 veloxdb:dev
+docker run --rm -p 7379:7379 veloxdb:dev
 ```
 
 Docker Compose:
@@ -153,6 +155,11 @@ docker compose -f docker/docker-compose.ghcr.yml up
 ```
 
 See [docs/packaging.md](docs/packaging.md) for GHCR tags and publishing details.
+
+## Releases
+
+VeloxDB uses semantic Git tags like `v0.1.0`. GitHub Releases are named `VeloxDB v0.1.0`
+and include source archives plus checksums. See [docs/release.md](docs/release.md).
 
 ## Roadmap
 

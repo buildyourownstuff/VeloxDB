@@ -12,13 +12,13 @@ ghcr.io/buildyourownstuff/veloxdb
 
 ```bash
 docker pull ghcr.io/buildyourownstuff/veloxdb:latest
-docker run --rm -p 6379:6379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+docker run --rm -p 7379:7379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
 ```
 
 Then connect with:
 
 ```bash
-redis-cli -p 6379 PING
+redis-cli -p 7379 PING
 ```
 
 Docker Compose without a local build:
