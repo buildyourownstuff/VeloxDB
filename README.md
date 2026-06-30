@@ -72,6 +72,21 @@ Convenience:
 
 ## Redis CLI Examples
 
+VeloxDB has a first-party CLI in the private org repo
+[`buildyourownstuff/velox-cli`](https://github.com/buildyourownstuff/velox-cli). It defaults to
+VeloxDB's `7379` port:
+
+```bash
+velox-cli PING
+velox-cli SET name dev
+velox-cli GET name
+velox-cli --raw GET name
+```
+
+See [docs/cli.md](docs/cli.md) for setup and usage.
+
+Redis-compatible clients can still be used for the supported RESP2 command surface:
+
 ```bash
 redis-cli -p 7379 PING
 redis-cli -p 7379 SET name dev

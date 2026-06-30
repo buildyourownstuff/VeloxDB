@@ -3,6 +3,7 @@
 ## Phase 1: MVP Hardening
 
 - Linux epoll backend. Done.
+- First-party `velox-cli` client. Done.
 - More integration tests with `redis-cli`.
 - Parser fuzz target.
 - AOF rewrite and compaction.
