@@ -126,6 +126,15 @@ dataset size, client count, command mix, throughput, and p50/p95/p99/p999 latenc
 
 ## Docker
 
+Pull from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/buildyourownstuff/veloxdb:latest
+docker run --rm -p 6379:6379 -v veloxdb-data:/data ghcr.io/buildyourownstuff/veloxdb:latest
+```
+
+Build locally:
+
 ```bash
 docker build -t veloxdb:dev -f docker/Dockerfile .
 docker run --rm -p 6379:6379 veloxdb:dev
@@ -136,6 +145,14 @@ Docker Compose:
 ```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
+
+Docker Compose from GHCR:
+
+```bash
+docker compose -f docker/docker-compose.ghcr.yml up
+```
+
+See [docs/packaging.md](docs/packaging.md) for GHCR tags and publishing details.
 
 ## Roadmap
 

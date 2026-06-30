@@ -1,0 +1,15 @@
+.git
+.github
+build
+cmake-build-*
+.cache
+.idea
+.vscode
+data
+*.aof
+*.snapshot
+*.tmp
+*.log
+*.profraw
+*.profdata
+.DS_Store

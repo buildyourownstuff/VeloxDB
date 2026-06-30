@@ -1,0 +1,13 @@
+services:
+  veloxdb:
+    image: ghcr.io/buildyourownstuff/veloxdb:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - veloxdb-data:/data
+    environment:
+      VELOXDB_AOF_ENABLED: "true"
+      VELOXDB_AOF_PATH: "/data/veloxdb.aof"
+
+volumes:
+  veloxdb-data:
