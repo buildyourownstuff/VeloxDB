@@ -13,6 +13,7 @@ aof_enabled = true
 aof_path = "./data/veloxdb.aof"
 fsync_policy = "everysec"
 snapshot_path = "./data/veloxdb.snapshot"
+manifest_path = "./data/veloxdb.manifest"
 
 [expiration]
 active_enabled = true

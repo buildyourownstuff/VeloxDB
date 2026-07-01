@@ -25,6 +25,7 @@ struct PersistenceConfig {
   std::string aof_path{"./data/veloxdb.aof"};
   std::string fsync_policy{"everysec"};
   std::string snapshot_path{"./data/veloxdb.snapshot"};
+  std::string manifest_path{"./data/veloxdb.manifest"};
 };
 
 struct ExpirationConfig {

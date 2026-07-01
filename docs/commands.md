@@ -29,8 +29,9 @@ but it does not try to expose the whole Redis surface in the MVP.
 | PERSIST | Done | Removes expiry |
 | CONFIG GET | Partial | Static config plus safe runtime values |
 | CONFIG SET | Partial | `logging.level`, `metrics.enabled` only |
-| SAVE | Partial | Writes snapshot file |
+| SAVE | Partial | Writes snapshot and AOF-offset manifest |
 | BGSAVE | Planned | Returns an error in MVP |
+| BGREWRITEAOF | Partial | Synchronous compacting rewrite; background rewrite planned |
 | SHUTDOWN | Protected | Disabled unless `admin.shutdown_enabled=true` |
 
 Unsupported commands return:

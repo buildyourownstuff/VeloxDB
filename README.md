@@ -22,8 +22,8 @@ Implemented:
 
 Not yet production-ready:
 
-- No AUTH, ACLs, TLS, replication, clustering, AOF rewrite, or background snapshot coordination.
-- Snapshot `SAVE` exists, but AOF remains the primary recovery source when enabled.
+- No AUTH, ACLs, TLS, replication, clustering, or background snapshot coordination.
+- Snapshot `SAVE` exists and uses a manifest with AOF offsets, but background snapshotting is planned.
 - `MSET` can partially apply if a later key hits max-memory in the MVP.
 
 ## Build
@@ -86,9 +86,7 @@ See [docs/fuzzing.md](docs/fuzzing.md).
 
 ## Redis CLI Examples
 
-VeloxDB has a first-party CLI in the private org repo
-[`buildyourownstuff/velox-cli`](https://github.com/buildyourownstuff/velox-cli). It defaults to
-VeloxDB's `7379` port:
+VeloxDB has a first-party CLI that defaults to VeloxDB's `7379` port:
 
 ```bash
 velox-cli PING
@@ -116,7 +114,7 @@ redis-cli -p 7379 INFO
 `PING`, `ECHO`, `COMMAND`, `INFO`, `DBSIZE`, `FLUSHDB`, `SET`, `GET`, `DEL`,
 `EXISTS`, `MGET`, `MSET`, `INCR`, `DECR`, `APPEND`, `STRLEN`, `EXPIRE`,
 `PEXPIRE`, `PEXPIREAT`, `TTL`, `PTTL`, `PERSIST`, `CONFIG GET`, `CONFIG SET`,
-`SAVE`, `BGSAVE`, `SHUTDOWN`.
+`SAVE`, `BGSAVE`, `BGREWRITEAOF`, `SHUTDOWN`.
 
 See [docs/commands.md](docs/commands.md) for compatibility notes.
 
@@ -129,10 +127,13 @@ AOF is enabled by default:
 aof_enabled = true
 aof_path = "./data/veloxdb.aof"
 fsync_policy = "everysec"
+snapshot_path = "./data/veloxdb.snapshot"
+manifest_path = "./data/veloxdb.manifest"
 ```
 
-Recovery replays complete RESP commands and ignores a partially written final command. See
-[docs/persistence.md](docs/persistence.md) for crash-safety limitations.
+Recovery replays complete RESP commands and ignores a partially written final command. If a valid
+snapshot manifest exists, VeloxDB loads the snapshot and replays only the AOF tail after the recorded
+byte offset. See [docs/persistence.md](docs/persistence.md) for crash-safety limitations.
 
 ## Benchmarks
 
@@ -214,6 +215,6 @@ Commit messages should use conventional commit-style prefixes such as `feat:`, `
 
 ## Roadmap
 
-Near-term work is focused on io_uring experiments, AUTH/ACL, AOF rewrite, Prometheus metrics,
-slowlog, richer latency histograms, more Redis string command coverage, and snapshot/AOF manifest
+Near-term work is focused on io_uring experiments, AUTH/ACL, Prometheus metrics,
+slowlog, richer latency histograms, more Redis string command coverage, and background persistence
 coordination. See [docs/roadmap.md](docs/roadmap.md).

@@ -91,6 +91,7 @@ Status apply_cli_pair(Config& config, std::string_view name, const std::string& 
       {"aof-path", "persistence.aof_path"},
       {"fsync-policy", "persistence.fsync_policy"},
       {"snapshot-path", "persistence.snapshot_path"},
+      {"manifest-path", "persistence.manifest_path"},
       {"log-level", "logging.level"},
       {"shutdown-enabled", "admin.shutdown_enabled"},
       {"max-request-bytes", "protocol.max_request_bytes"},
@@ -209,6 +210,7 @@ Options:
   --aof-path <path>                     AOF path
   --fsync-policy <always|everysec|no>   AOF fsync policy
   --snapshot-path <path>                SAVE snapshot path
+  --manifest-path <path>                Snapshot/AOF manifest path
   --log-level <trace|debug|info|warn|error|off>
   --shutdown-enabled <true|false>       Enable SHUTDOWN command
   --max-request-bytes <n>
@@ -270,6 +272,8 @@ Status ConfigLoader::apply_env(Config& config) {
       {"VELOXDB_AOF_ENABLED", "persistence.aof_enabled"},
       {"VELOXDB_AOF_PATH", "persistence.aof_path"},
       {"VELOXDB_FSYNC_POLICY", "persistence.fsync_policy"},
+      {"VELOXDB_SNAPSHOT_PATH", "persistence.snapshot_path"},
+      {"VELOXDB_MANIFEST_PATH", "persistence.manifest_path"},
       {"VELOXDB_LOG_LEVEL", "logging.level"},
       {"VELOXDB_SHUTDOWN_ENABLED", "admin.shutdown_enabled"},
       {"VELOXDB_EXPIRATION_ACTIVE", "expiration.active_enabled"},
@@ -331,6 +335,10 @@ Status ConfigLoader::apply_kv(Config& config, const std::string& key, const std:
   }
   if (key == "persistence.snapshot_path") {
     config.persistence.snapshot_path = clean_value;
+    return Status::ok();
+  }
+  if (key == "persistence.manifest_path") {
+    config.persistence.manifest_path = clean_value;
     return Status::ok();
   }
   if (key == "expiration.active_enabled") {

@@ -58,6 +58,13 @@ Status persist(CommandContext& ctx, const std::vector<std::string>& args) {
   return ctx.aof->append(args);
 }
 
+Aof::MutationGuard mutation_guard(CommandContext& ctx) {
+  if (ctx.replay || ctx.aof == nullptr || !ctx.aof->enabled()) {
+    return {};
+  }
+  return ctx.aof->mutation_guard();
+}
+
 CommandResult persist_or_ok(CommandContext& ctx, const std::vector<std::string>& args,
                             CommandResult result = ok()) {
   const Status status = persist(ctx, args);
@@ -177,6 +184,7 @@ CommandResult set(CommandContext& ctx, const std::vector<std::string_view>& args
         timepoint_from_unix_ms(*pxat) - StorageEngine::Clock::now());
   }
 
+  auto guard = mutation_guard(ctx);
   auto result = ctx.storage.set(std::string(args[1]), std::string(args[2]), ttl, condition);
   if (result.code == StorageEngine::WriteCode::NotSet) {
     return {resp::null_bulk(), false};
@@ -198,6 +206,7 @@ CommandResult del(CommandContext& ctx, const std::vector<std::string_view>& args
     return wrong_args(args[0]);
   }
   std::vector<std::string_view> keys(args.begin() + 1, args.end());
+  auto guard = mutation_guard(ctx);
   const size_t deleted = ctx.storage.del(keys);
   if (deleted != 0) {
     const Status status = persist(ctx, copy_args(args));
@@ -229,6 +238,7 @@ CommandResult mset(CommandContext& ctx, const std::vector<std::string_view>& arg
   if (args.size() < 3 || args.size() % 2 == 0) {
     return wrong_args(args[0]);
   }
+  auto guard = mutation_guard(ctx);
   for (size_t i = 1; i < args.size(); i += 2) {
     const auto result = ctx.storage.set(std::string(args[i]), std::string(args[i + 1]), std::nullopt);
     if (result.code != StorageEngine::WriteCode::Ok) {
@@ -242,6 +252,7 @@ CommandResult incr_decr(CommandContext& ctx, const std::vector<std::string_view>
   if (args.size() != 2) {
     return wrong_args(args[0]);
   }
+  auto guard = mutation_guard(ctx);
   const auto result = ctx.storage.incr_by(args[1], delta);
   if (result.code != StorageEngine::WriteCode::Ok) {
     return err(storage_write_error(result.code));
@@ -253,6 +264,7 @@ CommandResult append(CommandContext& ctx, const std::vector<std::string_view>& a
   if (args.size() != 3) {
     return wrong_args(args[0]);
   }
+  auto guard = mutation_guard(ctx);
   const auto result = ctx.storage.append(args[1], args[2]);
   if (result.code != StorageEngine::WriteCode::Ok) {
     return err(storage_write_error(result.code));
@@ -276,6 +288,7 @@ CommandResult expire_impl(CommandContext& ctx, const std::vector<std::string_vie
   if (!ttl.has_value()) {
     return err("invalid expire time in " + std::string(command_name));
   }
+  auto guard = mutation_guard(ctx);
   const bool changed = ctx.storage.expire(args[1], *ttl);
   if (changed) {
     const std::string pxat = pxat_arg_from_ttl(*ttl);
@@ -296,6 +309,7 @@ CommandResult pexpireat(CommandContext& ctx, const std::vector<std::string_view>
   if (!when.has_value()) {
     return err("invalid expire time in PEXPIREAT");
   }
+  auto guard = mutation_guard(ctx);
   const bool changed = ctx.storage.expire_at(args[1], timepoint_from_unix_ms(*when));
   if (changed) {
     const Status status = persist(ctx, copy_args(args));
@@ -328,6 +342,7 @@ CommandResult persist_cmd(CommandContext& ctx, const std::vector<std::string_vie
   if (args.size() != 2) {
     return wrong_args(args[0]);
   }
+  auto guard = mutation_guard(ctx);
   const bool changed = ctx.storage.persist(args[1]);
   if (changed) {
     const Status status = persist(ctx, copy_args(args));
@@ -350,6 +365,7 @@ CommandResult flushdb(CommandContext& ctx, const std::vector<std::string_view>& 
   if (args.size() != 1) {
     return wrong_args(args[0]);
   }
+  auto guard = mutation_guard(ctx);
   ctx.storage.flushdb();
   return persist_or_ok(ctx, std::vector<std::string>{"FLUSHDB"});
 }
@@ -408,6 +424,8 @@ std::vector<std::pair<std::string, std::string>> config_values(CommandContext& c
       {"persistence.aof_enabled", ctx.config.persistence.aof_enabled ? "yes" : "no"},
       {"persistence.aof_path", ctx.config.persistence.aof_path},
       {"persistence.fsync_policy", ctx.config.persistence.fsync_policy},
+      {"persistence.snapshot_path", ctx.config.persistence.snapshot_path},
+      {"persistence.manifest_path", ctx.config.persistence.manifest_path},
       {"expiration.active_enabled", ctx.config.expiration.active_enabled ? "yes" : "no"},
       {"expiration.interval_ms", std::to_string(ctx.config.expiration.interval_ms)},
       {"logging.level", std::string(log_level_name(Logger::instance().level()))},
@@ -466,7 +484,7 @@ CommandResult save(CommandContext& ctx, const std::vector<std::string_view>& arg
   if (ctx.snapshot == nullptr) {
     return err("snapshot store is not configured");
   }
-  const Status status = ctx.snapshot->save(ctx.storage);
+  const Status status = ctx.snapshot->save(ctx.storage, ctx.aof);
   if (!status) {
     log_error("snapshot", status.to_string());
     return err(status.message());
@@ -479,6 +497,23 @@ CommandResult bgsave(CommandContext&, const std::vector<std::string_view>& args)
     return wrong_args(args[0]);
   }
   return err("BGSAVE is planned; use SAVE for the MVP snapshot path");
+}
+
+CommandResult bgrewriteaof(CommandContext& ctx, const std::vector<std::string_view>& args) {
+  if (args.size() != 1) {
+    return wrong_args(args[0]);
+  }
+  if (ctx.aof == nullptr || !ctx.aof->enabled()) {
+    return err("AOF is disabled");
+  }
+  const Status status = ctx.aof->rewrite(ctx.storage);
+  if (!status) {
+    ctx.metrics.aof_write_failed();
+    log_error("aof", status.to_string());
+    return err("AOF rewrite failed: " + status.message());
+  }
+  ctx.metrics.aof_write_succeeded();
+  return ok();
 }
 
 CommandResult shutdown(CommandContext& ctx, const std::vector<std::string_view>& args) {
@@ -536,6 +571,7 @@ void register_default_commands(CommandRegistry& registry) {
   registry.register_command("CONFIG", cmd(config_cmd));
   registry.register_command("SAVE", cmd(save));
   registry.register_command("BGSAVE", cmd(bgsave));
+  registry.register_command("BGREWRITEAOF", cmd(bgrewriteaof));
   registry.register_command("SHUTDOWN", cmd(shutdown));
   registry.register_command("COMMAND", cmd([&registry](CommandContext&, const auto& args) {
     return command_cmd(registry, args);

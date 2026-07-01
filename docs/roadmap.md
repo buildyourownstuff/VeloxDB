@@ -6,8 +6,8 @@
 - First-party `velox-cli` client. Done.
 - More integration tests with `redis-cli`. Done.
 - Parser fuzz target. Done.
-- AOF rewrite and compaction.
-- Snapshot/AOF manifest with offsets.
+- AOF rewrite and compaction. Done.
+- Snapshot/AOF manifest with offsets. Done.
 - Prometheus metrics endpoint.
 - Per-command counters and latency histograms.
 - Slowlog.

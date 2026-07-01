@@ -59,8 +59,15 @@ AOF stores write commands as RESP arrays. Startup recovery replays complete comm
 partial final command. Expiry is persisted with absolute millisecond timestamps (`PXAT`/`PEXPIREAT`)
 to avoid relative-TTL drift on restart.
 
-`SAVE` writes a RESP-command snapshot through a temporary file and atomic rename. In the MVP, AOF is
-the recovery source when AOF is enabled.
+`BGREWRITEAOF` compacts the AOF by materializing the current live keyspace into a temporary RESP
+stream, fsyncing it, atomically replacing the active file, and reopening the append descriptor.
+Write commands hold a shared rewrite barrier while they mutate memory and append to AOF; compaction
+takes the exclusive side so replay order remains correct for non-idempotent commands such as `INCR`.
+
+`SAVE` writes a RESP-command snapshot through a temporary file and atomic rename. When AOF is
+enabled, it records a manifest containing the AOF byte offset covered by the snapshot. Startup loads
+the snapshot only if the manifest still matches the current AOF and then replays the AOF tail from
+that offset. AOF rewrite removes old manifests because compaction changes byte offsets.
 
 ## Observability
 

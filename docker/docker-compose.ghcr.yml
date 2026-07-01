@@ -8,6 +8,8 @@ services:
     environment:
       VELOXDB_AOF_ENABLED: "true"
       VELOXDB_AOF_PATH: "/data/veloxdb.aof"
+      VELOXDB_SNAPSHOT_PATH: "/data/veloxdb.snapshot"
+      VELOXDB_MANIFEST_PATH: "/data/veloxdb.manifest"
 
 volumes:
   veloxdb-data:

@@ -1,12 +1,14 @@
 # Velox CLI
 
-`velox-cli` is the first-party command-line client for VeloxDB. It lives in the private
-`buildyourownstuff/velox-cli` GitHub repository and speaks RESP2 over TCP.
+`velox-cli` is the first-party command-line client for VeloxDB. It speaks RESP2 over TCP and is
+included in official VeloxDB container packages.
 
 VeloxDB does not vendor the CLI as a submodule. The server remains independently buildable, while
 the CLI can version and release on its own cadence.
 
 ## Build
+
+For local CLI development, clone the CLI repository from the organization and build it with CMake:
 
 ```bash
 gh repo clone buildyourownstuff/velox-cli

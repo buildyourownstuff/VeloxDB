@@ -52,7 +52,7 @@ VOLUME ["/data"]
 USER veloxdb
 WORKDIR /var/lib/veloxdb
 
-CMD ["veloxdb", "--host", "0.0.0.0", "--port", "7379", "--aof-path", "/data/veloxdb.aof", "--snapshot-path", "/data/veloxdb.snapshot"]
+CMD ["veloxdb", "--host", "0.0.0.0", "--port", "7379", "--aof-path", "/data/veloxdb.aof", "--snapshot-path", "/data/veloxdb.snapshot", "--manifest-path", "/data/veloxdb.manifest"]
 
 FROM runtime-base AS runtime-with-cli
 

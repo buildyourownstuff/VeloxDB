@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <filesystem>
 #include <iostream>
 
 namespace {
@@ -41,7 +42,8 @@ int main(int argc, char** argv) {
   veloxdb::StorageEngine storage(config.storage, config.protocol);
   veloxdb::Metrics metrics;
   metrics.set_enabled(config.metrics.enabled);
-  veloxdb::SnapshotStore snapshot(config.persistence.snapshot_path, config.protocol);
+  veloxdb::SnapshotStore snapshot(config.persistence.snapshot_path, config.protocol,
+                                  config.persistence.manifest_path);
   veloxdb::CommandRegistry registry;
   veloxdb::register_default_commands(registry);
 
@@ -53,6 +55,29 @@ int main(int argc, char** argv) {
   }
 
   if (config.persistence.aof_enabled) {
+    size_t aof_replay_offset = 0;
+    size_t aof_size = 0;
+    std::error_code size_ec;
+    if (std::filesystem::exists(config.persistence.aof_path, size_ec) && !size_ec) {
+      const auto raw_size = std::filesystem::file_size(config.persistence.aof_path, size_ec);
+      if (!size_ec) {
+        aof_size = static_cast<size_t>(raw_size);
+      }
+    }
+    const auto snapshot_load =
+        snapshot.load_for_recovery(storage, config.persistence.aof_path, aof_size);
+    if (!snapshot_load.status) {
+      veloxdb::log_error("snapshot", snapshot_load.status.to_string());
+      return 3;
+    } else if (snapshot_load.loaded_snapshot) {
+      aof_replay_offset = snapshot_load.aof_replay_offset;
+      veloxdb::log_info("snapshot",
+                        "loaded snapshot; replaying AOF from offset " +
+                            std::to_string(aof_replay_offset));
+    } else if (snapshot_load.found_manifest) {
+      veloxdb::log_warn("snapshot", "ignored stale snapshot manifest; replaying AOF from start");
+    }
+
     veloxdb::CommandContext replay_ctx{
         storage,
         metrics,
@@ -75,7 +100,8 @@ int main(int argc, char** argv) {
             return veloxdb::Status::protocol_error("AOF command failed during replay");
           }
           return veloxdb::Status::ok();
-        });
+        },
+        aof_replay_offset);
     if (!stats.status) {
       veloxdb::log_error("aof", stats.status.to_string());
       return 3;

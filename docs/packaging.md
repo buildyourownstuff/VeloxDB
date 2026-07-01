@@ -53,9 +53,9 @@ The package source ref must include the CLI-enabled Docker target. Older tags cr
 `runtime-with-cli` was added cannot publish the bundled CLI image. For those, either publish from
 `main` explicitly or cut a newer release tag first.
 
-The Docker package also includes `velox-cli`, which lives in the private
+The Docker package also includes `velox-cli` from the separate
 `buildyourownstuff/velox-cli` repository. Before the first package release, add a read-only deploy
-key to `buildyourownstuff/velox-cli`, then store its private key as this repository secret on
+key to that CLI repository, then store its private key as this repository secret on
 `buildyourownstuff/VeloxDB`:
 
 ```bash
@@ -129,8 +129,8 @@ The published package target is `runtime-with-cli`, so the image contains:
 - `/usr/local/bin/veloxdb`
 - `/usr/local/bin/velox-cli`
 
-Because `velox-cli` lives in the private `buildyourownstuff/velox-cli` repository, the workflow
-requires a repository secret:
+Because `velox-cli` is checked out from the separate `buildyourownstuff/velox-cli` repository, the
+workflow requires a repository secret:
 
 ```text
 VELOX_CLI_DEPLOY_KEY
