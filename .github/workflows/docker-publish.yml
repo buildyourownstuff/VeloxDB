@@ -93,24 +93,42 @@ jobs:
           echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "SOURCE_REVISION_SHORT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
 
-      - name: Validate velox-cli repository token
+      - name: Resolve velox-cli repository credential
+        id: cli_auth
         env:
+          VELOX_CLI_DEPLOY_KEY: ${{ secrets.VELOX_CLI_DEPLOY_KEY }}
           VELOX_CLI_REPO_TOKEN: ${{ secrets.VELOX_CLI_REPO_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "$VELOX_CLI_REPO_TOKEN" ]]; then
-            echo "VELOX_CLI_REPO_TOKEN is required to package velox-cli from the private repository." >&2
-            echo "Create a fine-grained token with read-only Contents access to buildyourownstuff/velox-cli." >&2
+          if [[ -n "$VELOX_CLI_DEPLOY_KEY" ]]; then
+            echo "mode=ssh" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$VELOX_CLI_REPO_TOKEN" ]]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+          else
+            echo "VELOX_CLI_DEPLOY_KEY or VELOX_CLI_REPO_TOKEN is required to package velox-cli from the private repository." >&2
+            echo "Prefer a read-only deploy key if deploy keys are enabled; otherwise use a fine-grained token with read-only Contents access." >&2
             exit 1
           fi
 
-      - name: Checkout velox-cli
+      - name: Checkout velox-cli with deploy key
+        if: steps.cli_auth.outputs.mode == 'ssh'
+        uses: actions/checkout@v4
+        with:
+          repository: buildyourownstuff/velox-cli
+          ref: ${{ inputs.velox_cli_ref }}
+          path: .docker-context/velox-cli
+          ssh-key: ${{ secrets.VELOX_CLI_DEPLOY_KEY }}
+          persist-credentials: false
+
+      - name: Checkout velox-cli with token
+        if: steps.cli_auth.outputs.mode == 'token'
         uses: actions/checkout@v4
         with:
           repository: buildyourownstuff/velox-cli
           ref: ${{ inputs.velox_cli_ref }}
           path: .docker-context/velox-cli
           token: ${{ secrets.VELOX_CLI_REPO_TOKEN }}
+          persist-credentials: false
 
       - name: Resolve velox-cli revision
         working-directory: .docker-context/velox-cli

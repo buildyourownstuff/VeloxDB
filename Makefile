@@ -5,7 +5,8 @@ REMOTE ?= origin
 PROJECT_VERSION := $(shell awk '/^project/ { for (i = 1; i <= NF; ++i) if ($$i == "VERSION") { print $$(i + 1); exit } }' CMakeLists.txt)
 PACKAGE_TAG ?= $(PROJECT_VERSION)
 PACKAGE_REF ?= v$(PACKAGE_TAG)
-VELOX_CLI_REF ?= $(PACKAGE_REF)
+VELOX_CLI_VERSION ?= 0.1.0
+VELOX_CLI_REF ?= v$(VELOX_CLI_VERSION)
 PUBLISH_LATEST ?= false
 PLATFORMS ?= linux/amd64,linux/arm64
 
@@ -14,12 +15,12 @@ PLATFORMS ?= linux/amd64,linux/arm64
 help:
 	@echo "VeloxDB release helpers"
 	@echo
-	@echo "  make github-release VERSION=0.1.0"
-	@echo "  make package-release PACKAGE_TAG=0.1.0"
-	@echo "  make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=v0.1.0 VELOX_CLI_REF=v0.1.0 PUBLISH_LATEST=true"
+	@echo "  make github-release VERSION=$(PROJECT_VERSION)"
+	@echo "  make package-release PACKAGE_TAG=$(PROJECT_VERSION)"
+	@echo "  make package-release PACKAGE_TAG=$(PROJECT_VERSION) PACKAGE_REF=v$(PROJECT_VERSION) VELOX_CLI_REF=$(VELOX_CLI_REF) PUBLISH_LATEST=true"
 	@echo "  make package-release PACKAGE_TAG=0.1.0 PACKAGE_REF=main VELOX_CLI_REF=main"
 	@echo "  make package-latest"
-	@echo "  make release VERSION=0.1.0 PUBLISH_LATEST=true"
+	@echo "  make release VERSION=$(PROJECT_VERSION) VELOX_CLI_REF=$(VELOX_CLI_REF) PUBLISH_LATEST=true"
 
 check-package-ref:
 	@test -n "$(PACKAGE_TAG)" || (echo "PACKAGE_TAG is required" >&2; exit 1)
@@ -44,10 +45,12 @@ check-package-ref:
 	fi
 
 check-package-secret:
-	@if ! gh secret list --repo "$(GITHUB_REPO)" 2>/dev/null | awk '{print $$1}' | grep -qx VELOX_CLI_REPO_TOKEN; then \
-		echo "Repository secret VELOX_CLI_REPO_TOKEN is missing on $(GITHUB_REPO)." >&2; \
+	@if ! gh secret list --repo "$(GITHUB_REPO)" 2>/dev/null | awk '{print $$1}' | grep -Eqx 'VELOX_CLI_DEPLOY_KEY|VELOX_CLI_REPO_TOKEN'; then \
+		echo "Repository secret VELOX_CLI_DEPLOY_KEY or VELOX_CLI_REPO_TOKEN is missing on $(GITHUB_REPO)." >&2; \
 		echo "The Docker package includes velox-cli from the private buildyourownstuff/velox-cli repo." >&2; \
-		echo "Create a fine-grained token with read-only Contents access to buildyourownstuff/velox-cli, then run:" >&2; \
+		echo "Preferred, when deploy keys are enabled:" >&2; \
+		echo "  gh secret set VELOX_CLI_DEPLOY_KEY --repo $(GITHUB_REPO) < /path/to/private/key" >&2; \
+		echo "Fallback:" >&2; \
 		echo "  gh secret set VELOX_CLI_REPO_TOKEN --repo $(GITHUB_REPO)" >&2; \
 		exit 1; \
 	fi
@@ -81,4 +84,4 @@ github-release:
 release:
 	@test -n "$(VERSION)" || (echo "VERSION is required, for example VERSION=0.1.0" >&2; exit 1)
 	$(MAKE) github-release VERSION="$(VERSION)"
-	$(MAKE) package-release PACKAGE_TAG="$(VERSION)" PACKAGE_REF="v$(VERSION)" VELOX_CLI_REF="v$(VERSION)" PUBLISH_LATEST="$(PUBLISH_LATEST)"
+	$(MAKE) package-release PACKAGE_TAG="$(VERSION)" PACKAGE_REF="v$(VERSION)" VELOX_CLI_REF="$(VELOX_CLI_REF)" PUBLISH_LATEST="$(PUBLISH_LATEST)"

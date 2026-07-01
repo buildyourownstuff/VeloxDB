@@ -54,16 +54,22 @@ The package source ref must include the CLI-enabled Docker target. Older tags cr
 `main` explicitly or cut a newer release tag first.
 
 The Docker package also includes `velox-cli`, which lives in the private
-`buildyourownstuff/velox-cli` repository. Before the first package release, add this repository
-secret to `buildyourownstuff/VeloxDB`:
+`buildyourownstuff/velox-cli` repository. Before the first package release, add a read-only deploy
+key to `buildyourownstuff/velox-cli`, then store its private key as this repository secret on
+`buildyourownstuff/VeloxDB`:
+
+```bash
+gh secret set VELOX_CLI_DEPLOY_KEY --repo buildyourownstuff/VeloxDB < /path/to/private/key
+```
+
+If deploy keys are disabled for the CLI repository, use a fine-grained token with read-only
+Contents access to `buildyourownstuff/velox-cli` instead:
 
 ```bash
 gh secret set VELOX_CLI_REPO_TOKEN --repo buildyourownstuff/VeloxDB
 ```
 
-Use a fine-grained GitHub token with read-only Contents access to
-`buildyourownstuff/velox-cli`. `make package-release` checks for this secret locally before
-dispatching the workflow.
+`make package-release` checks for one of these secrets locally before dispatching the workflow.
 
 Publish a released package and also update `latest`:
 
@@ -127,13 +133,25 @@ Because `velox-cli` lives in the private `buildyourownstuff/velox-cli` repositor
 requires a repository secret:
 
 ```text
+VELOX_CLI_DEPLOY_KEY
+```
+
+or:
+
+```text
 VELOX_CLI_REPO_TOKEN
 ```
 
-Use a fine-grained token with read-only Contents access to `buildyourownstuff/velox-cli`.
+Prefer a read-only deploy key attached to `buildyourownstuff/velox-cli`; store the private key in
+the VeloxDB repository secret above. If deploy keys are disabled, use a fine-grained token with
+read-only Contents access to the CLI repository.
 
 The workflow input `velox_cli_ref` controls the CLI ref included in the package. For a fully pinned
 release package, use a tagged CLI ref such as `v0.1.0`.
+
+VeloxDB and `velox-cli` version tags are intentionally independent. The Makefile defaults
+`VELOX_CLI_REF` from `VELOX_CLI_VERSION`; override it when publishing a database release that should
+bundle a different CLI tag or branch.
 
 Local source builds can produce the same image shape when the sibling CLI checkout is available:
 
