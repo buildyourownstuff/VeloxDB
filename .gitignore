@@ -1,4 +1,5 @@
 build/
+build-fuzz/
 cmake-build-*/
 .cache/
 .docker-context/

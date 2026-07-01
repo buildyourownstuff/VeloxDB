@@ -18,6 +18,7 @@ prefer RESP arrays.
 - Bounded request buffer.
 - Bounded array element count.
 - Bounded bulk string size.
+- libFuzzer target for value and command parser paths.
 - Safe error reporting for malformed CRLF, invalid lengths, null command args, and nested command
   arrays.
 

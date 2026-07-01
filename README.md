@@ -39,6 +39,7 @@ Useful CMake options:
 VELOXDB_BUILD_TESTS=ON/OFF
 VELOXDB_BUILD_INTEGRATION_TESTS=ON/OFF
 VELOXDB_BUILD_BENCHMARKS=ON/OFF
+VELOXDB_BUILD_FUZZERS=ON/OFF
 VELOXDB_ENABLE_ASAN=ON/OFF
 VELOXDB_ENABLE_UBSAN=ON/OFF
 VELOXDB_ENABLE_TSAN=ON/OFF
@@ -74,6 +75,14 @@ Convenience:
 ```bash
 ./scripts/run-tests.sh
 ```
+
+RESP parser fuzzing is available with Clang/libFuzzer:
+
+```bash
+./scripts/run-fuzz.sh 60
+```
+
+See [docs/fuzzing.md](docs/fuzzing.md).
 
 ## Redis CLI Examples
 
